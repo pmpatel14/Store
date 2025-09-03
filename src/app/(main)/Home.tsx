@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -57,6 +58,49 @@ const categoriesTextTitle = [
   "Summer",
   "Watch",
 ];
+const itemText = [
+  "Makeup",
+  "Rain",
+  "Ring",
+  "Shoes",
+  "Summer",
+  "Watch",
+  "Winter",
+  "Rain",
+  "Ring",
+  "Shoes",
+  "Summer",
+  "Watch",
+];
+
+const itemPrice = [
+  "99.00",
+  "199.00",
+  "299.00",
+  "399.00",
+  "499.00",
+  "599.00",
+  "699.00",
+  "799.00",
+  "899.00",
+  "999.00",
+  "1099.00",
+];
+
+const itemImages = [
+  Images.makeup,
+  Images.rain,
+  Images.ring,
+  Images.shoes,
+  Images.summer,
+  Images.watch,
+  Images.winter,
+  Images.rain,
+  Images.ring,
+  Images.shoes,
+  Images.summer,
+  Images.watch,
+];
 
 // Duplicate first & last for seamless loop
 const bannerImages = [
@@ -64,6 +108,152 @@ const bannerImages = [
   ...originalBanners,
   originalBanners[0],
 ];
+
+// Enhanced Sales Timer Component
+const SalesTimer = () => {
+  const [timeLeft, setTimeLeft] = useState({
+    days: "00",
+    hours: "00",
+    minutes: "00",
+    seconds: "00",
+  });
+
+  // Animation values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Example: Sale ends after 7 days
+    const saleEnd = new Date();
+    saleEnd.setDate(saleEnd.getDate() + 7);
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = saleEnd.getTime() - now;
+
+      if (distance <= 0) {
+        clearInterval(timer);
+        setTimeLeft({
+          days: "00",
+          hours: "00",
+          minutes: "00",
+          seconds: "00",
+        });
+      } else {
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        setTimeLeft({
+          days: String(days).padStart(2, "0"),
+          hours: String(hours).padStart(2, "0"),
+          minutes: String(minutes).padStart(2, "0"),
+          seconds: String(seconds).padStart(2, "0"),
+        });
+
+        // Update progress bar
+        const totalDuration = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+        const progress = 1 - distance / totalDuration;
+        Animated.timing(progressAnim, {
+          toValue: progress,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
+      }
+    }, 1000);
+
+    // Pulsing animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Slide in animation
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 800,
+      easing: Easing.out(Easing.exp),
+      useNativeDriver: true,
+    }).start();
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.salesTimerWrapper,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <Text style={styles.salesTimerTitle}>⏰ Flash Sale Ending Soon!</Text>
+      <Text style={styles.salesTimerSubtitle}>
+        Hurry up before time runs out
+      </Text>
+
+      <Animated.View
+        style={[styles.salesTimerBox, { transform: [{ scale: pulseAnim }] }]}
+      >
+        <View style={styles.timerUnit}>
+          <Text style={styles.timerNumber}>{timeLeft.days}</Text>
+          <Text style={styles.timerLabel}>Days</Text>
+        </View>
+
+        <Text style={styles.timerColon}>:</Text>
+
+        <View style={styles.timerUnit}>
+          <Text style={styles.timerNumber}>{timeLeft.hours}</Text>
+          <Text style={styles.timerLabel}>Hours</Text>
+        </View>
+
+        <Text style={styles.timerColon}>:</Text>
+
+        <View style={styles.timerUnit}>
+          <Text style={styles.timerNumber}>{timeLeft.minutes}</Text>
+          <Text style={styles.timerLabel}>Minutes</Text>
+        </View>
+
+        <Text style={styles.timerColon}>:</Text>
+
+        <View style={styles.timerUnit}>
+          <Text style={styles.timerNumber}>{timeLeft.seconds}</Text>
+          <Text style={styles.timerLabel}>Seconds</Text>
+        </View>
+      </Animated.View>
+
+      <View style={styles.progressBar}>
+        <Animated.View
+          style={[styles.progressFill, { width: progressWidth }]}
+        />
+      </View>
+
+      <Text style={styles.saleInfo}>
+        Limited offers - 30% off on selected items
+      </Text>
+    </Animated.View>
+  );
+};
 
 const Home = () => {
   const scrollRef = useRef<ScrollView>(null);
@@ -158,7 +348,7 @@ const Home = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Status Bar */}
       <StatusBar barStyle="light-content" backgroundColor="#140D2B" />
 
@@ -238,6 +428,41 @@ const Home = () => {
         </ScrollView>
       </View>
 
+      {/* Times for Sales */}
+      <SalesTimer />
+
+      {/* New Arrivals */}
+      <View style={styles.newArrivalsContainer}>
+        <Text style={styles.sectionTitle}>New Arrivals</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {itemImages.map((image, index) => (
+            <View key={index} style={styles.itemContainer}>
+              <Image source={image} style={styles.itemImage} />
+              <Text style={styles.itemText}>{itemText[index]}</Text>
+              <Text style={styles.itemPrice}>
+                ${itemPrice[index % itemPrice.length]}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* popular products */}
+      <View style={styles.popularContainer}>
+        <Text style={styles.sectionTitle}>Popular Products</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {itemImages.map((image, index) => (
+            <View key={index} style={styles.itemContainer}>
+              <Image source={image} style={styles.itemImage} />
+              <Text style={styles.itemText}>{itemText[index]}</Text>
+              <Text style={styles.itemPrice}>
+                ${itemPrice[index % itemPrice.length]}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Promo Banner */}
       <View style={styles.bannerContainer}>
         <View style={styles.bannerText}>
@@ -251,7 +476,7 @@ const Home = () => {
           <Image source={Images.banner} style={styles.bannerImage} />
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -349,6 +574,8 @@ const styles = StyleSheet.create({
     height: 200,
     borderBottomLeftRadius: 12,
     borderTopLeftRadius: 12,
+    justifyContent: "center",
+    paddingHorizontal: 10,
   },
   bannerTitle: {
     color: "#001C7E",
@@ -383,5 +610,126 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
     alignSelf: "center",
+  },
+
+  // Sales Timer Styles
+  salesTimerWrapper: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#001C7E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  salesTimerTitle: {
+    color: "#001C7E",
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  salesTimerSubtitle: {
+    color: "#6B7280",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  salesTimerBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#001C7E",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  timerUnit: {
+    alignItems: "center",
+    flex: 1,
+  },
+  timerNumber: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  timerLabel: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  timerColon: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginHorizontal: 4,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 3,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#001C7E",
+    borderRadius: 3,
+  },
+  saleInfo: {
+    color: "#6B7280",
+    fontSize: 12,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+
+  // New Arrivals Styles
+  newArrivalsContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    marginBottom: 30,
+  },
+  itemContainer: {
+    width: 150,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 10,
+    marginRight: 15,
+    shadowColor: "#001C7E",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  itemImage: {
+    width: "100%",
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 8,
+    resizeMode: "cover",
+  },
+  itemText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  itemPrice: {
+    color: "#001C7E",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  // New Arrivals Styles
+  popularContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
 });
