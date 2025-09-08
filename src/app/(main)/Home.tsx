@@ -1,24 +1,29 @@
 import Images from "@/src/constants/imageParth";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   Easing,
+  FlatList,
   Image,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from "react-native";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
+// Data arrays
 const originalBanners = [
   Images.slide_1,
   Images.slide_2,
@@ -58,6 +63,7 @@ const categoriesTextTitle = [
   "Summer",
   "Watch",
 ];
+
 const itemText = [
   "Makeup",
   "Rain",
@@ -255,12 +261,95 @@ const SalesTimer = () => {
   );
 };
 
+// Product Card Component
+const ProductCard = ({
+  image,
+  name,
+  price,
+  index,
+}: {
+  image: any;
+  name: string;
+  price: string;
+  index: number;
+}) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const toggleFavorite = () => {
+    setIsFavorite(!isFavorite);
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.3,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  return (
+    <View style={styles.itemContainer}>
+      <TouchableOpacity style={styles.favoriteButton} onPress={toggleFavorite}>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={20}
+            color={isFavorite ? "#FF3B30" : "#ccc"}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+      <Image source={image} style={styles.itemImage} />
+      <Text style={styles.itemText} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.itemPrice}>${price}</Text>
+      <TouchableOpacity style={styles.addToCartButton}>
+        <Ionicons name="cart-outline" size={16} color="#fff" />
+        <Text style={styles.addToCartText}>Add to Cart</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// Quick Actions Component
+const QuickActions = () => {
+  const actions = [
+    { icon: "flash", name: "Flash Sale", color: "#FF3B30" },
+    { icon: "gift", name: "Offers", color: "#34C759" },
+    { icon: "star", name: "Best Sellers", color: "#FFCC00" },
+    { icon: "trending-up", name: "Trending", color: "#5856D6" },
+  ];
+
+  return (
+    <View style={styles.quickActionsContainer}>
+      {actions.map((action, index) => (
+        <TouchableOpacity key={index} style={styles.quickActionItem}>
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: action.color }]}
+          >
+            <Ionicons name={action.icon} size={20} color="#fff" />
+          </View>
+          <Text style={styles.quickActionText}>{action.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
 const Home = () => {
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isScrollingRef = useRef(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [refreshing, setRefreshing] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Function to start auto-scroll
   const startAutoScroll = () => {
@@ -347,136 +436,238 @@ const Home = () => {
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Simulate data refresh
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  };
+
+  const filteredProducts = itemImages.filter((_, index) =>
+    itemText[index].toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       {/* Status Bar */}
       <StatusBar barStyle="light-content" backgroundColor="#140D2B" />
 
       {/* Top Bar */}
       <View style={styles.statusBaar}>
         <Image source={Images.logo} style={styles.logo} />
-        <Ionicons name="notifications-outline" size={24} style={styles.icon} />
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => setShowSearchModal(true)}>
+            <Ionicons name="search-outline" size={24} style={styles.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              style={styles.icon}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Ionicons name="cart-outline" size={24} style={styles.icon} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchBaar}>
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color="#ccc"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          placeholder="Search here..."
-          placeholderTextColor="#bbb"
-          style={styles.searchInput}
-        />
-      </View>
-
-      {/* Banner Slider */}
-      <View style={styles.bannerWrapper}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScrollEnd}
-          onScrollBeginDrag={handleScrollBegin}
-          scrollEventThrottle={16}
-        >
-          {bannerImages.map((img, index) => (
-            <View key={index} style={styles.slideWrapper}>
-              <Image source={img} style={styles.slide} />
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* Dots Indicator */}
-        <Animated.View
-          style={[styles.indicatorContainer, { opacity: fadeAnim }]}
-        >
-          {originalBanners.map((_, index) => (
-            <TouchableWithoutFeedback
-              key={index}
-              onPress={() => goToSlide(index)}
-            >
-              <View
-                style={[
-                  styles.indicator,
-                  index === activeIndex && styles.activeIndicator,
-                ]}
+      {/* Search Modal */}
+      <Modal
+        visible={showSearchModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSearchModal(false)}
+      >
+        <View style={styles.searchModalContainer}>
+          <View style={styles.searchModalContent}>
+            <View style={styles.searchModalHeader}>
+              <TextInput
+                placeholder="Search products..."
+                placeholderTextColor="#bbb"
+                style={styles.searchModalInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
               />
-            </TouchableWithoutFeedback>
-          ))}
-        </Animated.View>
-      </View>
+              <TouchableOpacity onPress={() => setShowSearchModal(false)}>
+                <Ionicons name="close" size={24} color="#001C7E" />
+              </TouchableOpacity>
+            </View>
 
-      {/* Categories */}
-      <View style={styles.categoriesWrapper}>
-        <Text style={styles.sectionTitle}>Categories</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {categories_1.map((image, index) => (
-            <View key={index} style={styles.categoryItem}>
-              <View style={styles.categoryImageWrapper}>
-                <Image source={image} style={styles.categoryImage} />
+            {searchQuery.length > 0 && (
+              <FlatList
+                data={filteredProducts}
+                keyExtractor={(_, index) => index.toString()}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity style={styles.searchResultItem}>
+                    <Image source={item} style={styles.searchResultImage} />
+                    <View style={styles.searchResultText}>
+                      <Text style={styles.searchResultTitle}>
+                        {itemText[index]}
+                      </Text>
+                      <Text style={styles.searchResultPrice}>
+                        ${itemPrice[index % itemPrice.length]}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                style={styles.searchResultsList}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#001C7E"]}
+            tintColor="#001C7E"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Search Bar */}
+        <TouchableWithoutFeedback onPress={() => setShowSearchModal(true)}>
+          <View style={styles.searchBaar}>
+            <Ionicons
+              name="search-outline"
+              size={20}
+              color="#ccc"
+              style={styles.searchIcon}
+            />
+            <Text style={styles.searchPlaceholder}>Search here...</Text>
+          </View>
+        </TouchableWithoutFeedback>
+
+        {/* Banner Slider */}
+        <View style={styles.bannerWrapper}>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleScrollEnd}
+            onScrollBeginDrag={handleScrollBegin}
+            scrollEventThrottle={16}
+          >
+            {bannerImages.map((img, index) => (
+              <View key={index} style={styles.slideWrapper}>
+                <Image source={img} style={styles.slide} />
               </View>
-              <Text style={styles.categoryText}>
-                {categoriesTextTitle[index]}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+            ))}
+          </ScrollView>
 
-      {/* Times for Sales */}
-      <SalesTimer />
-
-      {/* New Arrivals */}
-      <View style={styles.newArrivalsContainer}>
-        <Text style={styles.sectionTitle}>New Arrivals</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {itemImages.map((image, index) => (
-            <View key={index} style={styles.itemContainer}>
-              <Image source={image} style={styles.itemImage} />
-              <Text style={styles.itemText}>{itemText[index]}</Text>
-              <Text style={styles.itemPrice}>
-                ${itemPrice[index % itemPrice.length]}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* popular products */}
-      <View style={styles.popularContainer}>
-        <Text style={styles.sectionTitle}>Popular Products</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {itemImages.map((image, index) => (
-            <View key={index} style={styles.itemContainer}>
-              <Image source={image} style={styles.itemImage} />
-              <Text style={styles.itemText}>{itemText[index]}</Text>
-              <Text style={styles.itemPrice}>
-                ${itemPrice[index % itemPrice.length]}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Promo Banner */}
-      <View style={styles.bannerContainer}>
-        <View style={styles.bannerText}>
-          <Text style={styles.bannerTitle}>30% Off Discount</Text>
-          <Text style={styles.bannerSubTitle}>
-            Started several mistake joy say painful reached end
-          </Text>
-          <Text style={styles.bannerButton}>Shop now!</Text>
+          {/* Dots Indicator */}
+          <Animated.View
+            style={[styles.indicatorContainer, { opacity: fadeAnim }]}
+          >
+            {originalBanners.map((_, index) => (
+              <TouchableWithoutFeedback
+                key={index}
+                onPress={() => goToSlide(index)}
+              >
+                <View
+                  style={[
+                    styles.indicator,
+                    index === activeIndex && styles.activeIndicator,
+                  ]}
+                />
+              </TouchableWithoutFeedback>
+            ))}
+          </Animated.View>
         </View>
-        <View style={styles.bannerImageMain}>
-          <Image source={Images.banner} style={styles.bannerImage} />
+
+        {/* Quick Actions */}
+        <QuickActions />
+
+        {/* Categories */}
+        <View style={styles.categoriesWrapper}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {categories_1.map((image, index) => (
+              <TouchableOpacity key={index} style={styles.categoryItem}>
+                <View style={styles.categoryImageWrapper}>
+                  <Image source={image} style={styles.categoryImage} />
+                </View>
+                <Text style={styles.categoryText}>
+                  {categoriesTextTitle[index]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Times for Sales */}
+        <SalesTimer />
+
+        {/* New Arrivals */}
+        <View style={styles.productSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>New Arrivals</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAll}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {itemImages.map((image, index) => (
+              <ProductCard
+                key={index}
+                image={image}
+                name={itemText[index]}
+                price={itemPrice[index % itemPrice.length]}
+                index={index}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Popular Products */}
+        <View style={styles.productSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Products</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAll}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {itemImages.map((image, index) => (
+              <ProductCard
+                key={index}
+                image={image}
+                name={itemText[index]}
+                price={itemPrice[index % itemPrice.length]}
+                index={index}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Promo Banner */}
+        <View style={styles.bannerContainer}>
+          <View style={styles.bannerText}>
+            <Text style={styles.bannerTitle}>30% Off Discount</Text>
+            <Text style={styles.bannerSubTitle}>
+              Started several mistake joy say painful reached end
+            </Text>
+            <TouchableOpacity style={styles.bannerButtonContainer}>
+              <Text style={styles.bannerButton}>Shop now!</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.bannerImageMain}>
+            <Image source={Images.banner} style={styles.bannerImage} />
+          </View>
+        </View>
+
+        {/* Footer Space */}
+        <View style={styles.footerSpace} />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -484,12 +675,17 @@ export default Home;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#140D2B" },
+  scrollView: { flex: 1 },
   statusBaar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 10,
+  },
+  headerIcons: {
+    flexDirection: "row",
+    gap: 15,
   },
   logo: { width: 80, height: 80, resizeMode: "contain" },
   icon: { color: "#fff" },
@@ -499,12 +695,74 @@ const styles = StyleSheet.create({
     backgroundColor: "#1f1f2e",
     marginHorizontal: 20,
     marginVertical: 10,
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
   },
+  searchPlaceholder: {
+    color: "#bbb",
+    fontSize: 16,
+    marginLeft: 8,
+  },
   searchIcon: { marginRight: 8, color: "#aaa" },
   searchInput: { flex: 1, color: "#fff", fontSize: 16 },
+
+  // Search Modal Styles
+  searchModalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-start",
+    paddingTop: 60,
+  },
+  searchModalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    minHeight: height * 0.8,
+  },
+  searchModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  searchModalInput: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: "#001C7E",
+    paddingVertical: 10,
+    fontSize: 18,
+    marginRight: 15,
+  },
+  searchResultsList: {
+    marginTop: 10,
+  },
+  searchResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  searchResultImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 15,
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  searchResultPrice: {
+    fontSize: 14,
+    color: "#001C7E",
+    fontWeight: "bold",
+  },
 
   bannerWrapper: { marginTop: 15, position: "relative" },
   slideWrapper: {
@@ -533,6 +791,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeIndicator: { backgroundColor: "#fff", width: 20 },
+
+  // Quick Actions
+  quickActionsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  quickActionItem: {
+    alignItems: "center",
+  },
+  quickActionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  quickActionText: {
+    color: "#fff",
+    fontSize: 12,
+    textAlign: "center",
+  },
 
   categoriesWrapper: { marginTop: 20, paddingHorizontal: 20 },
   sectionTitle: {
@@ -598,18 +881,20 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
   },
+  bannerButtonContainer: {
+    alignSelf: "center",
+    marginTop: 10,
+  },
   bannerButton: {
     color: "#ffffffff",
     fontSize: 16,
     fontWeight: "bold",
-    marginTop: 10,
-    backgroundColor: "#001C7E",
     padding: 10,
     borderRadius: 5,
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 1,
-    alignSelf: "center",
+    backgroundColor: "#001C7E",
   },
 
   // Sales Timer Styles
@@ -689,11 +974,17 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  // New Arrivals Styles
-  newArrivalsContainer: {
+  // Product Section Styles
+  productSection: {
     marginTop: 20,
     paddingHorizontal: 20,
     marginBottom: 30,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
   },
   itemContainer: {
     width: 150,
@@ -706,6 +997,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+    position: "relative",
+  },
+  favoriteButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: 15,
+    padding: 5,
   },
   itemImage: {
     width: "100%",
@@ -724,12 +1025,40 @@ const styles = StyleSheet.create({
     color: "#001C7E",
     fontSize: 16,
     fontWeight: "bold",
+    marginBottom: 8,
   },
-
-  // New Arrivals Styles
-  popularContainer: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    marginBottom: 30,
+  addToCartButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#001C7E",
+    padding: 8,
+    borderRadius: 5,
+    gap: 5,
+  },
+  addToCartText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  viewAll: {
+    color: " #001C7E",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    textTransform: "uppercase",
+    backgroundColor: "#fff",
+    padding: 5,
+    borderRadius: 5,
+    marginTop: 10,
+    marginBottom: 20,
+    shadowColor: "#001C7E",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  footerSpace: {
+    height: 30,
   },
 });
